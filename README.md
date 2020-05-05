@@ -12,7 +12,7 @@ For this, I will be using the CARLA-Software to simulate multiple cars driving a
 <img src=https://cdn2.unrealengine.com/Unreal+Engine%2Fspotlights%2Fcarla-democratizes-autonomous-vehicle-r-d-with-free-open-source-simulator%2FSpotlight_CARLA_blog_feature_img-1920x960-6fb8676dbfe27ef776d96057b021025e89722684.jpg width="500"/>
 
 ***
-<details><summary>You can find more information an all the tasks for the module</summary>
+<details><summary>You can find more information an all the tasks for the module in the Wiki</summary>
 
 * [Requirements][req]
 
