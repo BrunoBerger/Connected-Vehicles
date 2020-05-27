@@ -681,47 +681,6 @@ class HelpText(object):
 
 
 # ==============================================================================
-# -- CollisionSensor -----------------------------------------------------------
-# ==============================================================================
-
-
-class CollisionSensor(object):
-    def __init__(self, parent_actor, hud):
-        self.sensor = None
-        self.history = []
-        self._parent = parent_actor
-        self.hud = hud
-        world = self._parent.get_world()
-        bp = world.get_blueprint_library().find('sensor.other.collision')
-        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
-        # We need to pass the lambda a weak reference to self to avoid circular
-        # reference.
-        weak_self = weakref.ref(self)
-        self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
-
-    def get_collision_history(self):
-        history = collections.defaultdict(int)
-        for frame, intensity in self.history:
-            history[frame] += intensity
-        return history
-
-    @staticmethod
-    def _on_collision(weak_self, event):
-        self = weak_self()
-        if not self:
-            return
-        actor_type = get_actor_display_name(event.other_actor)
-        self.hud.notification('Collision with %r' % actor_type)
-        impulse = event.normal_impulse
-        intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
-        self.history.append((event.frame, intensity))
-        if len(self.history) > 4000:
-            self.history.pop(0)
-
-
-        print("I crashed at:", event.actor.get_location())
-        print("Crash force:", intensity, "Time:", event.timestamp)
-# ==============================================================================
 # -- LaneInvasionSensor --------------------------------------------------------
 # ==============================================================================
 
@@ -993,7 +952,48 @@ class CameraManager(object):
             self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         if self.recording:
             image.save_to_disk('_out/%08d' % image.frame)
+            
+# ==============================================================================
+# -- CollisionSensor -----------------------------------------------------------
+# ==============================================================================
 
+
+class CollisionSensor(object):
+    def __init__(self, parent_actor, hud):
+        self.sensor = None
+        self.history = []
+        self._parent = parent_actor
+        self.hud = hud
+        world = self._parent.get_world()
+        bp = world.get_blueprint_library().find('sensor.other.collision')
+        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+        # We need to pass the lambda a weak reference to self to avoid circular
+        # reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
+
+    def get_collision_history(self):
+        history = collections.defaultdict(int)
+        for frame, intensity in self.history:
+            history[frame] += intensity
+        return history
+
+    @staticmethod
+    def _on_collision(weak_self, event):
+        self = weak_self()
+        if not self:
+            return
+        actor_type = get_actor_display_name(event.other_actor)
+        self.hud.notification('Collision with %r' % actor_type)
+        impulse = event.normal_impulse
+        intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
+        self.history.append((event.frame, intensity))
+        if len(self.history) > 4000:
+            self.history.pop(0)
+
+
+        print("I crashed at:", event.actor.get_location())
+        print("Crash force:", intensity, "Time:", event.timestamp)
 
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
@@ -1036,56 +1036,20 @@ def game_loop(args):
 
         pygame.quit()
 
+# ==============================================================================
+# -- connectToMQTT() --------------------------------------------------------------------
+# ==============================================================================
+
+def connectToCity():
+    pass
+
 
 # ==============================================================================
 # -- main() --------------------------------------------------------------------
 # ==============================================================================
 
 
-def main():
-    argparser = argparse.ArgumentParser(
-        description='CARLA Manual Control Client')
-    argparser.add_argument(
-        '-v', '--verbose',
-        action='store_true',
-        dest='debug',
-        help='print debug information')
-    argparser.add_argument(
-        '--host',
-        metavar='H',
-        default='127.0.0.1',
-        help='IP of the host server (default: 127.0.0.1)')
-    argparser.add_argument(
-        '-p', '--port',
-        metavar='P',
-        default=2000,
-        type=int,
-        help='TCP port to listen to (default: 2000)')
-    argparser.add_argument(
-        '-a', '--autopilot',
-        action='store_true',
-        help='enable autopilot')
-    argparser.add_argument(
-        '--res',
-        metavar='WIDTHxHEIGHT',
-        default='1280x720',
-        help='window resolution (default: 1280x720)')
-    argparser.add_argument(
-        '--filter',
-        metavar='PATTERN',
-        default='vehicle.*',
-        help='actor filter (default: "vehicle.*")')
-    argparser.add_argument(
-        '--rolename',
-        metavar='NAME',
-        default='hero',
-        help='actor role name (default: "hero")')
-    argparser.add_argument(
-        '--gamma',
-        default=2.2,
-        type=float,
-        help='Gamma correction of the camera (default: 2.2)')
-    args = argparser.parse_args()
+def main(args):
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
 

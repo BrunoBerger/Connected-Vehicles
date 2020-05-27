@@ -3,10 +3,12 @@ import os
 import multiprocessing
 
 import spawn_npc
+import manual_control
 
 # Tests Buttton Function
 def callbackTest():
     print("Autsch")
+
 # Spawns NPC into the world
 def initSpawnNPC(args, run_flag, all_processes):
     print("Spawning NPC")
@@ -15,6 +17,7 @@ def initSpawnNPC(args, run_flag, all_processes):
     process.start()
     all_processes.append(process)
 
+# destroys all cars
 def killNPC(args, run_flag, all_processes):
     print("Destroying NPCs")
     # close loose threads
@@ -22,7 +25,16 @@ def killNPC(args, run_flag, all_processes):
     for process in all_processes:
         process.join()
 
-def spawnControl(args, run_flag, all_processes):
+# Spawns a manualy driven Car,
+# that will communicate with the smart city
+def addManualDriver(args, all_processes):
+    # manual_control.main(args)
+    process = multiprocessing.Process(target=manual_control.main, args=(args,))
+    process.start()
+    all_processes.append(process)
+
+# Setup tkinter window and buttons
+def spawnControlWindow(args, run_flag, all_processes):
     # generate tkinter-window
     config = Tk()
     config.title("Spawn Control")
@@ -41,11 +53,11 @@ def spawnControl(args, run_flag, all_processes):
     b_test = Button(config, text="Print Something",
         command=lambda: callbackTest(),
         height=2, width=15)
-    b_start = Button(config, text="Spawn NPCs",
+    b_start = Button(config, text="Add NPCs",
         command= lambda: initSpawnNPC(args, run_flag, all_processes),
         height=2, width=15)
     b_end = Button(config, text="Spawn a Manual Driver",
-        command= lambda: callbackTest(),
+        command= lambda: addManualDriver(args, all_processes),
         height=2, width=15)
     b_map = Button(config, text="Delete Everybody",
         command= lambda: killNPC(args, run_flag, all_processes),

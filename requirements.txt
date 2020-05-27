@@ -1,0 +1,4 @@
+numpy==1.18.3
+pygame==1.9.6
+carla==0.9.5
+paho_mqtt==1.5.0
