@@ -32,4 +32,5 @@ client1.on_message=on_message
 
 client1.loop_start()
 time.sleep(3)
+print("Shutting down now")
 client1.loop_stop()
