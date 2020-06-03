@@ -58,6 +58,7 @@ from __future__ import print_function
 import glob
 import os
 import sys
+import time
 
 try:
     sys.path.append(glob.glob('carla-*%d.%d-%s.egg' % (
@@ -67,11 +68,13 @@ try:
 except IndexError:
     pass
 
-
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
 # ==============================================================================
-
+# my imports
+import paho.mqtt.client as mqtt
+import functools
+from Vitals import heartrate
 
 import carla
 
@@ -155,7 +158,7 @@ def get_actor_display_name(actor, truncate=250):
 
 
 class World(object):
-    def __init__(self, carla_world, hud, args):
+    def __init__(self, carla_world, hud, args, mqttClient):
         self.world = carla_world
         self.actor_role_name = args.rolename
         try:
@@ -177,12 +180,12 @@ class World(object):
         self._weather_index = 0
         self._actor_filter = args.filter
         self._gamma = args.gamma
-        self.restart()
+        self.restart(mqttClient)
         self.world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
         self.recording_start = 0
 
-    def restart(self):
+    def restart(self, mqttClient):
         self.player_max_speed = 1.589
         self.player_max_speed_fast = 3.713
         # Keep same camera config if the camera manager exists.
@@ -222,7 +225,7 @@ class World(object):
             spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
         # Set up the sensors.
-        self.collision_sensor = CollisionSensor(self.player, self.hud)
+        self.collision_sensor = CollisionSensor(self.player, self.hud, mqttClient)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
         self.imu_sensor = IMUSensor(self.player)
@@ -952,14 +955,14 @@ class CameraManager(object):
             self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         if self.recording:
             image.save_to_disk('_out/%08d' % image.frame)
-            
+
 # ==============================================================================
 # -- CollisionSensor -----------------------------------------------------------
 # ==============================================================================
 
 
 class CollisionSensor(object):
-    def __init__(self, parent_actor, hud):
+    def __init__(self, parent_actor, hud, mqttClient):
         self.sensor = None
         self.history = []
         self._parent = parent_actor
@@ -970,7 +973,7 @@ class CollisionSensor(object):
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
-        self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
+        self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event, mqttClient))
 
     def get_collision_history(self):
         history = collections.defaultdict(int)
@@ -978,8 +981,8 @@ class CollisionSensor(object):
             history[frame] += intensity
         return history
 
-    @staticmethod
-    def _on_collision(weak_self, event):
+    # @staticmethod
+    def _on_collision(weak_self, event, mqttClient):
         self = weak_self()
         if not self:
             return
@@ -995,12 +998,14 @@ class CollisionSensor(object):
         print("I crashed at:", event.actor.get_location())
         print("Crash force:", intensity, "Time:", event.timestamp)
 
+        sendData(mqttClient)
+
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
 
 
-def game_loop(args):
+def game_loop(args, mqttClient):
     pygame.init()
     pygame.font.init()
     world = None
@@ -1014,7 +1019,7 @@ def game_loop(args):
             pygame.HWSURFACE | pygame.DOUBLEBUF)
 
         hud = HUD(args.width, args.height)
-        world = World(client.get_world(), hud, args)
+        world = World(client.get_world(), hud, args, mqttClient)
         controller = KeyboardControl(world, args.autopilot)
 
         clock = pygame.time.Clock()
@@ -1039,9 +1044,34 @@ def game_loop(args):
 # ==============================================================================
 # -- connectToMQTT() --------------------------------------------------------------------
 # ==============================================================================
+#Methode um Daten zu senden
+def sendData(mqttClient):
+    stressed = True
+    vitals = heartrate.getHeartRate(stressed)
+    print("My heart-Rate is ", vitals, " BPM")
+
+    topic = "/hshl/test"
+    payLoad = "[TEST] help, i crashed my car"
+    print("Sending data now")
+    mqttClient.publish(topic, payLoad)
+    mqttClient.loop_start()
+    time.sleep(0.1)
+    mqttClient.loop_stop()
+
+#Event, dass beim Verbindungsaufbau aufgerufen wird
+def on_connect(client, userdata, flags, rc):
+    print("Connected to MQTT Broker: " + BROKER_ADDRESS)
 
 def connectToCity():
-    pass
+    #Dont change anything from here!!
+    BROKER_ADDRESS = "mr2mbqbl71a4vf.messaging.solace.cloud" #Adresse des MQTT Brokers
+    mqttClient = mqtt.Client()
+    mqttClient.on_connect = on_connect #Zuweisen des Connect Events
+    mqttClient.username_pw_set("solace-cloud-client", "nbsse0pkvpkvhpeh3ll5j7rpha") # Benutzernamen und Passwort zur Verbindung setzen
+    mqttClient.connect(BROKER_ADDRESS, port = 20614) #Verbindung zum Broker aufbauen
+
+
+    return mqttClient
 
 
 # ==============================================================================
@@ -1049,21 +1079,29 @@ def connectToCity():
 # ==============================================================================
 
 
-def main(args):
+def main(args, all_processes):
+    # change print behaviour to always flush the sys.stdout buffer
+    global print
+    print = functools.partial(print, flush=True)
+    print("Overwritten print function")
+
+    print("Starting manual controlled-vehicle")
+
+    mqttClient = connectToCity()
+
+    # heartRateMonitor = multiprocessing.Process(target=manual_control.main,
+    #                                            args=(args, all_processes,))
+
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
-
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
-
     logging.info('listening to server %s:%s', args.host, args.port)
 
     print(__doc__)
 
     try:
-
-        game_loop(args)
-
+        game_loop(args, mqttClient)
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
 

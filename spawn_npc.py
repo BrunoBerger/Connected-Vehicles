@@ -12,6 +12,7 @@ import glob
 import os
 import sys
 import time
+import functools
 
 try:
     sys.path.append(glob.glob('carla-*%d.%d-%s.egg' % (
@@ -22,12 +23,16 @@ except IndexError:
     pass
 
 import carla
-
 import logging
 import random
 
 
 def main(args, run_flag):
+    # change print behaviour to always flush the sys.stdout buffer
+    global print
+    print = functools.partial(print, flush=True)
+    print("Overwritten print function")
+
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
     vehicles_list = []
@@ -211,6 +216,3 @@ def main(args, run_flag):
         client.apply_batch([carla.command.DestroyActor(x) for x in all_id])
 
         time.sleep(0.5)
-
-if __name__ == '__main__':
-    pass
