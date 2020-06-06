@@ -76,6 +76,7 @@ import paho.mqtt.client as mqtt
 import functools
 import multiprocessing
 from Vitals import heartrate
+from Communication import functions as mqttConnection
 
 import carla
 
@@ -999,14 +1000,14 @@ class CollisionSensor(object):
         print("I crashed at:", event.actor.get_location())
         print("Crash force:", intensity, "Time:", event.timestamp)
 
-        sendData(mqttClient)
+        mqttConnection.sendData(mqttClient)
 
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
 
 
-def game_loop(args, mqttClient, isStarted):
+def game_loop(args, mqttClient):
     pygame.init()
     pygame.font.init()
     world = None
@@ -1024,7 +1025,6 @@ def game_loop(args, mqttClient, isStarted):
         controller = KeyboardControl(world, args.autopilot)
 
         clock = pygame.time.Clock()
-        isStarted = True
         while True:
             clock.tick_busy_loop(60)
             if controller.parse_events(client, world, clock):
@@ -1044,44 +1044,11 @@ def game_loop(args, mqttClient, isStarted):
         pygame.quit()
 
 # ==============================================================================
-# -- connectToMQTT() --------------------------------------------------------------------
-# ==============================================================================
-#Methode um Daten zu senden
-def sendData(mqttClient):
-    stressed = True
-    vitals = heartrate.getHeartRate(stressed)
-    print("My heart-Rate is ", vitals, " BPM")
-
-    topic = "/hshl/test"
-    payLoad = "[TEST] help, i crashed my car"
-    print("Sending data now")
-    mqttClient.publish(topic, payLoad)
-    mqttClient.loop_start()
-    time.sleep(0.1)
-    mqttClient.loop_stop()
-
-#Event, dass beim Verbindungsaufbau aufgerufen wird
-def on_connect(client, userdata, flags, rc):
-    print("Connected to MQTT Broker: " + BROKER_ADDRESS)
-
-def connectToCity():
-    #Dont change anything from here!!
-    BROKER_ADDRESS = "mr2mbqbl71a4vf.messaging.solace.cloud" #Adresse des MQTT Brokers
-    mqttClient = mqtt.Client()
-    mqttClient.on_connect = on_connect #Zuweisen des Connect Events
-    mqttClient.username_pw_set("solace-cloud-client", "nbsse0pkvpkvhpeh3ll5j7rpha") # Benutzernamen und Passwort zur Verbindung setzen
-    mqttClient.connect(BROKER_ADDRESS, port = 20614) #Verbindung zum Broker aufbauen
-
-
-    return mqttClient
-
-
-# ==============================================================================
 # -- main() --------------------------------------------------------------------
 # ==============================================================================
 
 
-def main(args, all_processes, isStarted):
+def main(args, all_processes):
     # change print behaviour to always flush the sys.stdout buffer
     global print
     print = functools.partial(print, flush=True)
@@ -1089,13 +1056,13 @@ def main(args, all_processes, isStarted):
 
     print("Starting manual controlled-vehicle")
 
-    mqttClient = connectToCity()
+    mqttClient = mqttConnection.connectToCity()
 
     # constantly monitor heartrate
-    run_flag = multiprocessing.Value('I', True)
-    # heartRateMonitor = multiprocessing.Process(target=heartrate.monitor,
-    #                                            args=(run_flag,))
-    # heartRateMonitor.start()
+    monitor_flag = multiprocessing.Value('I', True)
+    heartRateMonitor = multiprocessing.Process(target=heartrate.monitor,
+                                               args=(monitor_flag,))
+    heartRateMonitor.start()
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
     log_level = logging.DEBUG if args.debug else logging.INFO
@@ -1105,13 +1072,13 @@ def main(args, all_processes, isStarted):
     print(__doc__)
 
     try:
-        game_loop(args, mqttClient, isStarted)
+        game_loop(args, mqttClient)
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
 
+    monitor_flag.value = False
+    heartRateMonitor.join()
     print("Closing Maunal Car")
-    run_flag.value = False
-    sys.exit()
-    
+
 if __name__ == '__main__':
     main()

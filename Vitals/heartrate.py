@@ -10,12 +10,15 @@ def getHeartRate(stressed=False):
     return heartRate
 
 
-def monitor(run_flag):
-    while run_flag.value:
+def monitor(monitor_flag):
+    print("Monitoring Heartrate", flush=True)
+    while monitor_flag.value:
         time.sleep(1)
-        curHeartRate = getHeartRate()
+        curRate = getHeartRate()
         if curRate < 35 or curRate > 200:
-            print("Oha mein Herz")
+            print("Oha mein Herz", flush=True)
+        else:
+            print("Heartrate normal, at",curRate,"BPM", flush=True)
 
 def test():
     for i in range(1000):
