@@ -1,12 +1,18 @@
 import multiprocessing
 import argparse
 import time
+import os
 
 from mqtt_Tests import listen
 from UI import interface
-import arguments
+from assets import arguments
 
 def main():
+    # Set current working dir to the one of main.pyq
+    abspath = os.path.abspath(__file__)
+    dname = os.path.dirname(abspath)
+    os.chdir(dname)
+
     print("Loading args and UI")
     # init launch-options
     args = arguments.defaultArgs()
@@ -20,7 +26,6 @@ def main():
     # process = multiprocessing.Process(target=listen.connect, args=(run_flag,))
     # process.start()
     # all_processes.append(process)
-
 
     # generate window to control the spawning of vehicles
     interface.spawnControlWindow(args, run_flag, all_processes)

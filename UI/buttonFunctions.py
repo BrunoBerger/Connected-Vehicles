@@ -1,12 +1,9 @@
 import multiprocessing
+import time
 
 import spawn_npc
 import manual_control
 from UI import interface
-
-# Tests Buttton Function
-def callbackTest():
-    print("Autsch")
 
 # Spawns NPC into the world
 def initSpawnNPC(args, run_flag, all_processes, sl_numOfNpc):
@@ -30,7 +27,10 @@ def killActors(run_flag, all_processes):
 
 # Spawns a manualy driven Car,
 # that will communicate with the smart city
-def addManualDriver(args, all_processes):
-    process = multiprocessing.Process(target=manual_control.main, args=(args, all_processes,))
-    process.start()
-    all_processes.append(process)
+def addManualDriver(args, all_processes, b_man):
+    # b_man.config(state="disabled")
+    isStarted = False
+    carProcess = multiprocessing.Process(target=manual_control.main,
+                                         args=(args, all_processes, isStarted))
+    carProcess.daemond = True
+    carProcess.start()

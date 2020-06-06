@@ -61,7 +61,7 @@ import sys
 import time
 
 try:
-    sys.path.append(glob.glob('carla-*%d.%d-%s.egg' % (
+    sys.path.append(glob.glob('assets/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
         sys.version_info.minor,
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
@@ -74,6 +74,7 @@ except IndexError:
 # my imports
 import paho.mqtt.client as mqtt
 import functools
+import multiprocessing
 from Vitals import heartrate
 
 import carla
@@ -1005,7 +1006,7 @@ class CollisionSensor(object):
 # ==============================================================================
 
 
-def game_loop(args, mqttClient):
+def game_loop(args, mqttClient, isStarted):
     pygame.init()
     pygame.font.init()
     world = None
@@ -1023,6 +1024,7 @@ def game_loop(args, mqttClient):
         controller = KeyboardControl(world, args.autopilot)
 
         clock = pygame.time.Clock()
+        isStarted = True
         while True:
             clock.tick_busy_loop(60)
             if controller.parse_events(client, world, clock):
@@ -1079,7 +1081,7 @@ def connectToCity():
 # ==============================================================================
 
 
-def main(args, all_processes):
+def main(args, all_processes, isStarted):
     # change print behaviour to always flush the sys.stdout buffer
     global print
     print = functools.partial(print, flush=True)
@@ -1089,9 +1091,11 @@ def main(args, all_processes):
 
     mqttClient = connectToCity()
 
-    # heartRateMonitor = multiprocessing.Process(target=manual_control.main,
-    #                                            args=(args, all_processes,))
-
+    # constantly monitor heartrate
+    run_flag = multiprocessing.Value('I', True)
+    # heartRateMonitor = multiprocessing.Process(target=heartrate.monitor,
+    #                                            args=(run_flag,))
+    # heartRateMonitor.start()
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
     log_level = logging.DEBUG if args.debug else logging.INFO
@@ -1101,10 +1105,13 @@ def main(args, all_processes):
     print(__doc__)
 
     try:
-        game_loop(args, mqttClient)
+        game_loop(args, mqttClient, isStarted)
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
 
-
+    print("Closing Maunal Car")
+    run_flag.value = False
+    sys.exit()
+    
 if __name__ == '__main__':
     main()

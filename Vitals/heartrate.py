@@ -10,19 +10,19 @@ def getHeartRate(stressed=False):
     return heartRate
 
 
-def monitor():
-    set
+def monitor(run_flag):
     while run_flag.value:
         time.sleep(1)
         curHeartRate = getHeartRate()
-
+        if curRate < 35 or curRate > 200:
+            print("Oha mein Herz")
 
 def test():
-    for i in range(200):
+    for i in range(1000):
         curRate = getHeartRate()
         print(curRate)
-        if curRate < 40 or curRate > 140:
-            print("     Go to the doc!")
+        if curRate < 35 or curRate > 200:
+            print("Uff, autsch, mein Herz")
 
 
 if __name__ == "__main__":
