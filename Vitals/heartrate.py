@@ -1,6 +1,8 @@
 import numpy.random as np
 import time
 
+from Communication import mqttFunctions
+
 # returns a heartRate in BPM
 def getHeartRate(stressed=False):
     heartRate = np.normal(loc=90, scale=20)
@@ -16,7 +18,17 @@ def monitor(monitor_flag):
         time.sleep(1)
         curRate = getHeartRate()
         if curRate < 35 or curRate > 200:
-            print("Oha mein Herz", flush=True)
+
+            topic = "/hshl/users/" + str(args.id)
+            crashInfo = {
+                "driver_name": args.rolename,
+                "location": location,
+                "reasons": "generic reason",
+                "topic": topic
+                }
+            payLoad = json.dumps(crashInfo)
+            mqttFunctions.sendData(mqttClient, topic, payLoad)
+
         else:
             print("Heartrate normal, at",curRate,"BPM", flush=True)
 

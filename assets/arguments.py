@@ -84,6 +84,11 @@ def defaultArgs():
         default='hero',
         help='actor role name (default: "hero")')
     argparser.add_argument(
+        '--id',
+        metavar='driverId',
+        default=000,
+        help='actor id')
+    argparser.add_argument(
         '--gamma',
         default=2.2,
         type=float,

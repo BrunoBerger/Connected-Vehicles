@@ -1,5 +1,6 @@
 import multiprocessing
 import time
+import webbrowser
 
 import spawn_npc
 import manual_control
@@ -33,3 +34,7 @@ def addManualDriver(args, all_processes, b_man):
                                          args=(args, all_processes))
     # carProcess.daemon = True
     carProcess.start()
+
+# opens a new tab in the default browser
+def openWeblink(url):
+    webbrowser.open_new(url)

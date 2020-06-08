@@ -75,8 +75,10 @@ except IndexError:
 import paho.mqtt.client as mqtt
 import functools
 import multiprocessing
+import json
+from datetime import datetime as dtTime
 from Vitals import heartrate
-from Communication import functions as mqttConnection
+from Communication import mqttFunctions
 
 import carla
 
@@ -182,12 +184,12 @@ class World(object):
         self._weather_index = 0
         self._actor_filter = args.filter
         self._gamma = args.gamma
-        self.restart(mqttClient)
+        self.restart(args, mqttClient)
         self.world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
         self.recording_start = 0
 
-    def restart(self, mqttClient):
+    def restart(self, args, mqttClient):
         self.player_max_speed = 1.589
         self.player_max_speed_fast = 3.713
         # Keep same camera config if the camera manager exists.
@@ -227,7 +229,7 @@ class World(object):
             spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
         # Set up the sensors.
-        self.collision_sensor = CollisionSensor(self.player, self.hud, mqttClient)
+        self.collision_sensor = CollisionSensor(self.player, self.hud, args, mqttClient)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
         self.imu_sensor = IMUSensor(self.player)
@@ -964,9 +966,10 @@ class CameraManager(object):
 
 
 class CollisionSensor(object):
-    def __init__(self, parent_actor, hud, mqttClient):
+    def __init__(self, parent_actor, hud, args, mqttClient):
         self.sensor = None
         self.history = []
+        self.lastCrashTime = dtTime.now()
         self._parent = parent_actor
         self.hud = hud
         world = self._parent.get_world()
@@ -975,7 +978,7 @@ class CollisionSensor(object):
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
-        self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event, mqttClient))
+        self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event, args, mqttClient))
 
     def get_collision_history(self):
         history = collections.defaultdict(int)
@@ -983,8 +986,8 @@ class CollisionSensor(object):
             history[frame] += intensity
         return history
 
-    # @staticmethod
-    def _on_collision(weak_self, event, mqttClient):
+    @staticmethod
+    def _on_collision(weak_self, event, args, mqttClient):
         self = weak_self()
         if not self:
             return
@@ -995,13 +998,27 @@ class CollisionSensor(object):
         self.history.append((event.frame, intensity))
         if len(self.history) > 4000:
             self.history.pop(0)
+        print("Contact with", str(actor_type))
 
-
-        print("I crashed at:", event.actor.get_location())
-        print("Crash force:", intensity, "Time:", event.timestamp)
-
-        mqttConnection.sendData(mqttClient)
-
+        crashTime = dtTime.now()
+        crashTDelta = (crashTime - self.lastCrashTime).total_seconds()
+        if crashTDelta > 10:
+            location = str(event.actor.get_location())
+            if intensity > 1:
+                accidentLevel = "hard_accident"
+            else:
+                accidentLevel = "light_accident"
+            topic = "/hshl/users/" + str(args.id)
+            crashInfo = {
+                "topic": topic,
+                "reasons": accidentLevel,
+                "driver_name": args.rolename,
+                "location": location,
+                "Crash-Intesity": intensity
+                }
+            payLoad = json.dumps(crashInfo)
+            mqttFunctions.sendData(mqttClient, topic, payLoad)
+            self.lastCrashTime = crashTime
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
@@ -1054,9 +1071,18 @@ def main(args, all_processes):
     print = functools.partial(print, flush=True)
     print("Overwritten print function")
 
-    print("Starting manual controlled-vehicle")
+    # Assign a name and id to this specific driver
+    with open("assets/names.txt") as f:
+        lines = f.readlines()
+        name = random.choice(lines)
+        args.rolename = name
+    args.id = random.randint(10000, 99999)
+    print("Driver is :", args.rolename)
+    print("his driver id is", args.id)
 
-    mqttClient = mqttConnection.connectToCity()
+    # Connect to the solace-cloud server
+    mqttClient = mqttFunctions.connectToCity()
+    mqttFunctions.testMessage(mqttClient)
 
     # constantly monitor heartrate
     monitor_flag = multiprocessing.Value('I', True)

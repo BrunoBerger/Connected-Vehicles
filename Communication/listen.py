@@ -13,7 +13,7 @@ def on_message(client, userdata, message):
 #Event, dass beim Verbindungsaufbau aufgerufen wird
 def on_connect(client, userdata, flags, rc):
     #Abonnieren des Topics (Hier die jeweiligen Topics einfügen die vorgegeben sind
-    client.subscribe('/hshl/test')
+    client.subscribe('/hshl/#')
 
 def main():
     # Connect to solace server
