@@ -6,9 +6,6 @@ from Vitals import heartrate
 
 #Methode um Daten zu senden
 def sendData(mqttClient, topic, payLoad):
-    stressed = True
-    vitals = heartrate.getHeartRate(stressed)
-    print("My heart-Rate is ", vitals, " BPM")
     print("Sending data now", flush=True)
     mqttClient.publish(topic, payLoad)
     mqttClient.loop_start()
@@ -16,14 +13,10 @@ def sendData(mqttClient, topic, payLoad):
     mqttClient.loop_stop()
 
 def testMessage(mqttClient):
-    mqttClient.publish("hshl/users", "Did I connect?")
+    mqttClient.publish("hshl/test", "Did I connect?")
     mqttClient.loop_start()
     time.sleep(0.1)
     mqttClient.loop_stop()
-
-def requestSend(mqttClient, topic, payLoad):
-    sendData(mqttClient, topic, payLoad)
-
 
 
 #Event, dass beim Verbindungsaufbau aufgerufen wird

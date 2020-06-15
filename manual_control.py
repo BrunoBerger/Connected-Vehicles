@@ -998,26 +998,50 @@ class CollisionSensor(object):
         self.history.append((event.frame, intensity))
         if len(self.history) > 4000:
             self.history.pop(0)
+
+        # My Stuff:
         print("Contact with", str(actor_type))
 
         crashTime = dtTime.now()
         crashTDelta = (crashTime - self.lastCrashTime).total_seconds()
-        if crashTDelta > 10:
-            location = str(event.actor.get_location())
-            if intensity > 1:
+        print(crashTDelta, "seconds since last contact")
+        print("Intesity", intensity)
+
+        if crashTDelta > 6:
+
+            location = event.actor.get_location()
+            x_location = "%.5f" % location.x
+            y_location = "%.5f" % location.y
+
+            if intensity > 3:
                 accidentLevel = "hard_accident"
             else:
                 accidentLevel = "light_accident"
-            topic = "/hshl/users/" + str(args.id)
-            crashInfo = {
-                "topic": topic,
-                "reasons": accidentLevel,
-                "driver_name": args.rolename,
-                "location": location,
-                "Crash-Intesity": intensity
-                }
-            payLoad = json.dumps(crashInfo)
+            topic = "/hshl/users/" # + str(args.id)
+            heartRate = heartrate.getHeartRate(stressed=True)
+
+            # # if we can use json sometime:
+            # crashInfo = {
+            #     "topic": topic,
+            #     "reasons": accidentLevel,
+            #     "driver_name": args.rolename,
+            #     "location": location,
+            #     "Crash-Intesity": intensity,
+            #     "heartRate": heartRate,
+            #     "driver_id" args.id
+            #     }
+            # payLoad = json.dumps(crashInfo)
+
+            # for now:
+            payLoad = args.rolename +" "+ x_location+","+y_location +" "+ accidentLevel +" "+ str(args.id)
+
             mqttFunctions.sendData(mqttClient, topic, payLoad)
+
+            if heartRate < 35 or heartRate > 200:
+                print("Uff, autsch, mein Herz!")
+                payLoad = args.rolename +" "+ x_location+","+y_location +" "+ "heart_attack" +" "+ str(args.id)
+                mqttFunctions.sendData(mqttClient, topic, payLoad)
+
             self.lastCrashTime = crashTime
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
@@ -1065,11 +1089,10 @@ def game_loop(args, mqttClient):
 # ==============================================================================
 
 
-def main(args, all_processes):
+def main(args):
     # change print behaviour to always flush the sys.stdout buffer
     global print
     print = functools.partial(print, flush=True)
-    print("Overwritten print function")
 
     # Assign a name and id to this specific driver
     with open("assets/names.txt") as f:
@@ -1084,11 +1107,11 @@ def main(args, all_processes):
     mqttClient = mqttFunctions.connectToCity()
     mqttFunctions.testMessage(mqttClient)
 
-    # constantly monitor heartrate
-    monitor_flag = multiprocessing.Value('I', True)
-    heartRateMonitor = multiprocessing.Process(target=heartrate.monitor,
-                                               args=(monitor_flag,))
-    heartRateMonitor.start()
+    # # constantly monitor heartrate
+    # monitor_flag = multiprocessing.Value('I', True)
+    # heartRateMonitor = multiprocessing.Process(target=heartrate.monitor,
+    #                                            args=(monitor_flag,))
+    # heartRateMonitor.start()
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
     log_level = logging.DEBUG if args.debug else logging.INFO
@@ -1102,8 +1125,8 @@ def main(args, all_processes):
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
 
-    monitor_flag.value = False
-    heartRateMonitor.join()
+    # monitor_flag.value = False
+    # heartRateMonitor.join()
     print("Closing Maunal Car")
 
 if __name__ == '__main__':

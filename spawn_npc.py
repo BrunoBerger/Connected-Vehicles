@@ -31,7 +31,6 @@ def main(args, run_flag):
     # change print behaviour to always flush the sys.stdout buffer
     global print
     print = functools.partial(print, flush=True)
-    print("Overwritten print function")
 
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 

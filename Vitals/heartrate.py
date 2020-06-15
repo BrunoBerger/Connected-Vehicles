@@ -31,14 +31,3 @@ def monitor(monitor_flag):
 
         else:
             print("Heartrate normal, at",curRate,"BPM", flush=True)
-
-def test():
-    for i in range(1000):
-        curRate = getHeartRate()
-        print(curRate)
-        if curRate < 35 or curRate > 200:
-            print("Uff, autsch, mein Herz")
-
-
-if __name__ == "__main__":
-    test()

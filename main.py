@@ -21,12 +21,6 @@ def main():
     run_flag = multiprocessing.Value('I', True)
     all_processes = []
 
-    # # Keep listening to the server
-    # print("Listenting to server")
-    # process = multiprocessing.Process(target=listen.connect, args=(run_flag,))
-    # process.start()
-    # all_processes.append(process)
-
     # generate window to control the spawning of vehicles
     interface.spawnControlWindow(args, run_flag, all_processes)
 

@@ -23,7 +23,7 @@ def spawnControlWindow(args, run_flag, all_processes):
                                          sl_numOfNpc),
         height=4, width=15, bg=buttonColour)
     b_man = Button(master, text="Spawn a Manual Driver",
-        command= lambda: bf.addManualDriver(args, all_processes, b_man),
+        command= lambda: bf.addManualDriver(args),
         height=3, width=20, bg=buttonColour)
     b_kill = Button(master, text="Delete Everybody",
         command= lambda: bf.killActors(run_flag, all_processes),

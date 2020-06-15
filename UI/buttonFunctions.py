@@ -28,10 +28,9 @@ def killActors(run_flag, all_processes):
 
 # Spawns a manualy driven Car,
 # that will communicate with the smart city
-def addManualDriver(args, all_processes, b_man):
-    # b_man.config(state="disabled")
+def addManualDriver(args):
     carProcess = multiprocessing.Process(target=manual_control.main,
-                                         args=(args, all_processes))
+                                         args=(args,))
     # carProcess.daemon = True
     carProcess.start()
 
