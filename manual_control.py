@@ -998,51 +998,53 @@ class CollisionSensor(object):
         self.history.append((event.frame, intensity))
         if len(self.history) > 4000:
             self.history.pop(0)
-
-        # My Stuff:
+            
         print("Contact with", str(actor_type))
 
+        # to not send multiple messages when car is pushing up against smth
         crashTime = dtTime.now()
         crashTDelta = (crashTime - self.lastCrashTime).total_seconds()
         print(crashTDelta, "seconds since last contact")
         print("Intesity", intensity)
+        self.lastCrashTime = crashTime
 
-        if crashTDelta > 6:
+        if crashTDelta > 4:
 
             location = event.actor.get_location()
             x_location = "%.5f" % location.x
             y_location = "%.5f" % location.y
 
-            if intensity > 3:
-                accidentLevel = "hard_accident"
-            else:
-                accidentLevel = "light_accident"
-            topic = "/hshl/users/" # + str(args.id)
-            heartRate = heartrate.getHeartRate(stressed=True)
+            # categorise crash and send matching msg
+            if intensity > 20:
+                if intensity > 8000:
+                    accidentLevel = "hard_accident"
+                else:
+                    accidentLevel = "light_accident"
+                topic = "/hshl/users/" # + str(args.id)
+                heartRate = heartrate.getHeartRate(stressed=True)
 
-            # # if we can use json sometime:
-            # crashInfo = {
-            #     "topic": topic,
-            #     "reasons": accidentLevel,
-            #     "driver_name": args.rolename,
-            #     "location": location,
-            #     "Crash-Intesity": intensity,
-            #     "heartRate": heartRate,
-            #     "driver_id" args.id
-            #     }
-            # payLoad = json.dumps(crashInfo)
+                # # if we can use json sometime:
+                # crashInfo = {
+                #     "topic": topic,
+                #     "reasons": accidentLevel,
+                #     "driver_name": args.rolename,
+                #     "location": location,
+                #     "Crash-Intesity": intensity,
+                #     "heartRate": heartRate,
+                #     "driver_id" args.id
+                #     }
+                # payLoad = json.dumps(crashInfo)
 
-            # for now:
-            payLoad = args.rolename +" "+ x_location+","+y_location +" "+ accidentLevel +" "+ str(args.id)
+                # for now:
+                payLoad = args.rolename +" "+ x_location+","+y_location +" "+ accidentLevel +" "+ str(args.id)
 
-            mqttFunctions.sendData(mqttClient, topic, payLoad)
-
-            if heartRate < 35 or heartRate > 200:
-                print("Uff, autsch, mein Herz!")
-                payLoad = args.rolename +" "+ x_location+","+y_location +" "+ "heart_attack" +" "+ str(args.id)
                 mqttFunctions.sendData(mqttClient, topic, payLoad)
 
-            self.lastCrashTime = crashTime
+                if heartRate < 35 or heartRate > 200:
+                    print("Uff, autsch, mein Herz!")
+                    payLoad = args.rolename +" "+ x_location+","+y_location +" "+ "heart_attack" +" "+ str(args.id)
+                    mqttFunctions.sendData(mqttClient, topic, payLoad)
+
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
