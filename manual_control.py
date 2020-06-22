@@ -975,6 +975,10 @@ class CollisionSensor(object):
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.collision')
         self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+
+        topic = None
+        payLoad = None
+
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
@@ -998,7 +1002,7 @@ class CollisionSensor(object):
         self.history.append((event.frame, intensity))
         if len(self.history) > 4000:
             self.history.pop(0)
-            
+
         print("Contact with", str(actor_type))
 
         # to not send multiple messages when car is pushing up against smth
@@ -1020,29 +1024,32 @@ class CollisionSensor(object):
                     accidentLevel = "hard_accident"
                 else:
                     accidentLevel = "light_accident"
-                topic = "/hshl/users/" # + str(args.id)
+                topic = "/hshl/users/" + str(args.id)
                 heartRate = heartrate.getHeartRate(stressed=True)
 
-                # # if we can use json sometime:
-                # crashInfo = {
-                #     "topic": topic,
-                #     "reasons": accidentLevel,
-                #     "driver_name": args.rolename,
-                #     "location": location,
-                #     "Crash-Intesity": intensity,
-                #     "heartRate": heartRate,
-                #     "driver_id" args.id
-                #     }
-                # payLoad = json.dumps(crashInfo)
-
-                # for now:
-                payLoad = args.rolename +" "+ x_location+","+y_location +" "+ accidentLevel +" "+ str(args.id)
-
+                # if we can use json sometime:
+                crashInfo = {
+                    "driver_name": args.rolename,
+                    "location": [x_location, y_location],
+                    "reasons": accidentLevel,
+                    "driver_id": str(args.id),
+                    "Crash-Intesity": intensity,
+                    "heartRate": heartRate
+                    }
+                payLoad = json.dumps(crashInfo)
                 mqttFunctions.sendData(mqttClient, topic, payLoad)
 
-                if heartRate < 35 or heartRate > 200:
+                if True:
+                # if heartRate < 35 or heartRate > 200:
                     print("Uff, autsch, mein Herz!")
-                    payLoad = args.rolename +" "+ x_location+","+y_location +" "+ "heart_attack" +" "+ str(args.id)
+                    crashInfo = {
+                        "driver_name": args.rolename,
+                        "location": [x_location, y_location],
+                        "reasons": "heart_attack",
+                        "driver_id": str(args.id),
+                        "heartRate": heartRate
+                        }
+                    payLoad = json.dumps(crashInfo)
                     mqttFunctions.sendData(mqttClient, topic, payLoad)
 
 # ==============================================================================
@@ -1099,15 +1106,25 @@ def main(args):
     # Assign a name and id to this specific driver
     with open("assets/names.txt") as f:
         lines = f.readlines()
-        name = random.choice(lines)
+        name = random.choice(lines).rstrip('\n')
         args.rolename = name
     args.id = random.randint(10000, 99999)
     print("Driver is :", args.rolename)
-    print("his driver id is", args.id)
+    print("Their driver ID is", args.id)
 
     # Connect to the solace-cloud server
     mqttClient = mqttFunctions.connectToCity()
-    mqttFunctions.testMessage(mqttClient)
+    # register the user to the city
+    topic = "/hshl/users/"
+    crashInfo = {
+        "driver_name": args.rolename,
+        "location": [0, 0],
+        "reasons": "None",
+        "driver_id": str(args.id)
+        }
+    payLoad = json.dumps(crashInfo)
+    mqttFunctions.sendData(mqttClient, topic, payLoad)
+
 
     # # constantly monitor heartrate
     # monitor_flag = multiprocessing.Value('I', True)
