@@ -1030,9 +1030,9 @@ class CollisionSensor(object):
                 # if we can use json sometime:
                 crashInfo = {
                     "driver_name": args.rolename,
-                    "location": [x_location, y_location],
+                    "location": [float(x_location), float(y_location)],
                     "reasons": accidentLevel,
-                    "driver_id": str(args.id),
+                    "id": str(args.id),
                     "Crash-Intesity": intensity,
                     "heartRate": heartRate
                     }
@@ -1044,9 +1044,9 @@ class CollisionSensor(object):
                     print("Uff, autsch, mein Herz!")
                     crashInfo = {
                         "driver_name": args.rolename,
-                        "location": [x_location, y_location],
+                        "location": [float(x_location), float(y_location)],
                         "reasons": "heart_attack",
-                        "driver_id": str(args.id),
+                        "id": str(args.id),
                         "heartRate": heartRate
                         }
                     payLoad = json.dumps(crashInfo)
@@ -1120,7 +1120,7 @@ def main(args):
         "driver_name": args.rolename,
         "location": [0, 0],
         "reasons": "None",
-        "driver_id": str(args.id)
+        "id": str(args.id)
         }
     payLoad = json.dumps(crashInfo)
     mqttFunctions.sendData(mqttClient, topic, payLoad)
