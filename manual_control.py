@@ -76,7 +76,7 @@ import paho.mqtt.client as mqtt
 import functools
 import multiprocessing
 import json
-from datetime import datetime as dtTime
+from datetime import datetime
 from Vitals import heartrate
 from Communication import mqttFunctions
 
@@ -86,7 +86,7 @@ from carla import ColorConverter as cc
 
 import argparse
 import collections
-import datetime
+import datetime as dateTime2
 import logging
 import math
 import random
@@ -541,7 +541,7 @@ class HUD(object):
             '',
             'Vehicle: % 20s' % get_actor_display_name(world.player, truncate=20),
             'Map:     % 20s' % world.map.name,
-            'Simulation time: % 12s' % datetime.timedelta(seconds=int(self.simulation_time)),
+            'Simulation time: % 12s' % dateTime2.timedelta(seconds=int(self.simulation_time)),
             '',
             'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
             u'Compass:% 17.0f\N{DEGREE SIGN} % 2s' % (compass, heading),
@@ -969,7 +969,7 @@ class CollisionSensor(object):
     def __init__(self, parent_actor, hud, args, mqttClient):
         self.sensor = None
         self.history = []
-        self.lastCrashTime = dtTime.now()
+        self.lastCrashTime = datetime.now()
         self._parent = parent_actor
         self.hud = hud
         world = self._parent.get_world()
@@ -1005,42 +1005,41 @@ class CollisionSensor(object):
 
         print("Contact with", str(actor_type))
 
-        # to not send multiple messages when car is pushing up against smth
-        crashTime = dtTime.now()
+        # get last time a crash happend
+        crashTime = datetime.now()
         crashTDelta = (crashTime - self.lastCrashTime).total_seconds()
-        print(crashTDelta, "seconds since last contact")
-        print("Intesity", intensity)
         self.lastCrashTime = crashTime
 
-        if crashTDelta > 4:
+        # check if crash actually important
+        if crashTDelta > 4 and intensity > 20:
 
-            location = event.actor.get_location()
-            x_location = "%.5f" % location.x
-            y_location = "%.5f" % location.y
-
-            # categorise crash and send matching msg
-            if intensity > 20:
+                # Gather all important infos
+                location = event.actor.get_location()
+                x_location = "%.5f" % location.x
+                y_location = "%.5f" % location.y
+                heartRate = heartrate.getHeartRate(stressed=True)
                 if intensity > 8000:
                     accidentLevel = "hard_accident"
                 else:
                     accidentLevel = "light_accident"
-                topic = "/hshl/users/" + str(args.id)
-                heartRate = heartrate.getHeartRate(stressed=True)
 
-                # if we can use json sometime:
+                # TODO: fix location to be compatible with geopy
                 crashInfo = {
                     "driver_name": args.rolename,
                     "location": [float(x_location), float(y_location)],
                     "reasons": accidentLevel,
                     "id": str(args.id),
+                    "heartRate": heartRate,
                     "Crash-Intesity": intensity,
-                    "heartRate": heartRate
+                    "Crash-Partner": str(actor_type)
                     }
+                topic = "/hshl/users/" + str(args.id)
                 payLoad = json.dumps(crashInfo)
                 mqttFunctions.sendData(mqttClient, topic, payLoad)
+                print("Send Crash-Message to ", topic, ", waiting for help")
 
-                if True:
-                # if heartRate < 35 or heartRate > 200:
+                # additional message of vitals critical
+                if heartRate < 35 or heartRate > 200:
                     print("Uff, autsch, mein Herz!")
                     crashInfo = {
                         "driver_name": args.rolename,
@@ -1052,6 +1051,7 @@ class CollisionSensor(object):
                     payLoad = json.dumps(crashInfo)
                     mqttFunctions.sendData(mqttClient, topic, payLoad)
 
+        print(crashTDelta, "seconds since last contact")
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================

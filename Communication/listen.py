@@ -1,3 +1,5 @@
+# Execute this if you want to listen to the whole hshl topic
+
 import paho.mqtt.client as mqtt
 import time
 import datetime
@@ -5,6 +7,7 @@ import datetime
 # Connect to the mqtt-Server
 #Event, dass beim eintreffen einer Nachricht aufgerufen wird
 def on_message(client, userdata, message):
+    print("Message on Topic:" + message.topic)
     msg = str(message.payload.decode("utf-8")) #Nachricht Dekodieren
     currentDT = datetime.datetime.now() #Aktuelle Uhrzeit
     print(currentDT.strftime("%Y-%m-%d %H:%M:%S")+" Nachricht erhalten: "+str(msg))
